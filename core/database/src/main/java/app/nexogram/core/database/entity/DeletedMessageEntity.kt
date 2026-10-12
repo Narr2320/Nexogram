@@ -5,10 +5,10 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "deleted_messages")
 data class DeletedMessageEntity(
-    @PrimaryKey val messageId: Long,
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val messageId: Long,
     val chatId: Long,
     val senderId: Long,
     val textContent: String,
-    val timestamp: Long,
-    val deletedAt: Long = System.currentTimeMillis()
+    val timestamp: Long
 )

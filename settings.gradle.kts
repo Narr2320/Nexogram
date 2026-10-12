@@ -12,14 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-
 rootProject.name = "Nexogram"
-include(":app")
-include(":core:tdlib")
-include(":core:database")
-include(":core:security")
-include(":core:plugin-engine")
-include(":feature:chat-list")
-include(":feature:chat-screen")
-include(":feature:plugins")
-include(":feature:settings")
+include(":app", ":core:tdlib", ":core:database", ":core:security", ":core:plugin-engine")

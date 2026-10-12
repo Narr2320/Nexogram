@@ -4,9 +4,6 @@ import android.view.Window
 import android.view.WindowManager
 
 class SecurityManager {
-    /**
-     * Применение флага защиты от скриншотов и записи экрана
-     */
     fun applySecureWindow(window: Window) {
         window.setFlags(
             WindowManager.LayoutParams.FLAG_SECURE,

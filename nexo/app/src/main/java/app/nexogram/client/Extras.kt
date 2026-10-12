@@ -130,7 +130,7 @@ object Extras {
         Tg.send(TdApi.GetActiveSessions()) { r ->
             if (r is TdApi.Sessions) {
                 val list = r.sessions.map { s ->
-                    val info = listOf(s.deviceModel, s.platform, s.country).filter { it.isNotEmpty() }.joinToString(" · ")
+                    val info = listOf(s.deviceModel, s.platform, s.location).filter { it.isNotEmpty() }.joinToString(" · ")
                     SessionItem(
                         (s.applicationName + " " + s.applicationVersion).trim(),
                         info + " · " + fFmt.format(Date(s.lastActiveDate * 1000L)),

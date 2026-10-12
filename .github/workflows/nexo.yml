@@ -1,0 +1,29 @@
+name: Nexo App
+on: workflow_dispatch
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.9
+      - uses: actions/cache@v4
+        id: ks
+        with:
+          path: nexo/app/nexo.keystore
+          key: nexo-keystore-v1
+      - name: Create key
+        if: steps.ks.outputs.cache-hit != 'true'
+        run: keytool -genkeypair -keystore nexo/app/nexo.keystore -alias nexo -keyalg RSA -keysize 2048 -validity 10000 -storepass nexopass2026 -keypass nexopass2026 -dname "CN=Nexogram"
+      - name: Build
+        working-directory: nexo
+        run: gradle assembleRelease --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nexogram-apk
+          path: nexo/app/build/outputs/apk/release/*.apk

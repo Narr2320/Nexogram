@@ -17,9 +17,9 @@ jobs:
           sed -i 's/APP_ID = [0-9]*;/APP_ID = ${{ secrets.API_ID }};/' $F
           sed -i 's/APP_HASH = "[0-9a-f]*";/APP_HASH = "${{ secrets.API_HASH }}";/' $F
           rm -f TMessagesProj/config/release.keystore
-          keytool -genkeypair -keystore TMessagesProj/config/release.keystore -alias ${{ secrets.KEY_ALIAS }} -keyalg RSA -keysize 2048 -validity 10000 -storepass ${{ secrets.KEYSTORE_PASSWORD }} -keypass ${{ secrets.KEY_PASSWORD }} -dname "CN=Narek"
+          keytool -genkeypair -keystore TMessagesProj/config/release.keystore -alias key -keyalg RSA -keysize 2048 -validity 10000 -storepass nexopass2026 -keypass nexopass2026 -dname "CN=Narek"
       - name: Build
-        run: ./gradlew :TMessagesProj_App:assembleAfatRelease -PRELEASE_STORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }} -PRELEASE_KEY_ALIAS=${{ secrets.KEY_ALIAS }} -PRELEASE_KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew :TMessagesProj_App:assembleAfatRelease -PRELEASE_STORE_PASSWORD=nexopass2026 -PRELEASE_KEY_ALIAS=key -PRELEASE_KEY_PASSWORD=nexopass2026
       - uses: actions/upload-artifact@v4
         with:
           name: apk

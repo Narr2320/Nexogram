@@ -1,5 +1,9 @@
 name: Nexo App
 on: workflow_dispatch
+env:
+  API_ID: ${{ secrets.API_ID }}
+  API_HASH: ${{ secrets.API_HASH }}
+
 jobs:
   build:
     runs-on: ubuntu-24.04

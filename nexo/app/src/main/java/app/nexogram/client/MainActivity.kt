@@ -122,7 +122,7 @@ fun NexoApp(prefs: Prefs) {
     ) { pad ->
         Box(Modifier.padding(pad).fillMaxSize()) {
             when (tab) {
-                0 -> Placeholder("Здесь будут ваши чаты", "Вход в Telegram добавим следующим шагом")
+                0 -> ChatsTab()
                 1 -> Placeholder("Плагинов пока нет", "Здесь появятся ваши скрипты")
                 else -> SettingsScreen(prefs)
             }

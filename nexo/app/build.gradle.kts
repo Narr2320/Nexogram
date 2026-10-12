@@ -4,6 +4,9 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val tgId = (System.getenv("API_ID") ?: "").trim().ifEmpty { "0" }
+val tgHash = (System.getenv("API_HASH") ?: "").trim()
+
 android {
     namespace = "app.nexogram.client"
     compileSdk = 34
@@ -12,8 +15,11 @@ android {
         applicationId = "app.nexogram.client"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1"
+        versionCode = 2
+        versionName = "0.2"
+        ndk { abiFilters += listOf("arm64-v8a") }
+        buildConfigField("int", "TG_API_ID", tgId)
+        buildConfigField("String", "TG_API_HASH", "\"" + tgHash + "\"")
     }
 
     signingConfigs {
@@ -36,11 +42,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+    kotlinOptions { jvmTarget = "17" }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -51,4 +56,5 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-core")
+    implementation("com.github.fazilus:tdlib-android:1.8.61")
 }

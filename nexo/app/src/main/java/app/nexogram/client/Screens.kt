@@ -9,9 +9,11 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,6 +39,8 @@ fun ChatsTab() {
     val ctx = LocalContext.current
     LaunchedEffect(Unit) { Tg.start(ctx.applicationContext) }
     var open by remember { mutableStateOf<ChatItem?>(null) }
+    LaunchedEffect(open) { Extras.chatOpen = open != null }
+    DisposableEffect(Unit) { onDispose { Extras.chatOpen = false } }
     when (Tg.stage) {
         Stage.Starting -> Column(
             Modifier.fillMaxSize().padding(32.dp),
@@ -94,9 +98,9 @@ fun LoginForm(title: String, hint: String, kind: KeyboardType, secret: Boolean, 
 }
 
 @Composable
-fun Avatar(c: ChatItem, size: Dp) {
-    LaunchedEffect(c.photoId) { Tg.ensureAvatar(c.photoId, c.photoPath) }
-    val bmp = Tg.avatars[c.photoId]
+fun Avatar(title: String, photoId: Int, photoPath: String, size: Dp) {
+    LaunchedEffect(photoId) { Tg.ensureAvatar(photoId, photoPath) }
+    val bmp = Tg.avatars[photoId]
     Box(
         Modifier.size(size).clip(CircleShape).background(NexoStyle.dim),
         contentAlignment = Alignment.Center,
@@ -104,34 +108,60 @@ fun Avatar(c: ChatItem, size: Dp) {
         if (bmp != null) {
             Image(bmp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         } else {
-            Text(c.title.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold)
+            Text(
+                title.take(1).uppercase(),
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = (size.value / 2.4f).sp,
+            )
         }
     }
+}
+
+@Composable
+fun Avatar(c: ChatItem, size: Dp) = Avatar(c.title, c.photoId, c.photoPath, size)
+
+@Composable
+fun SearchPill(value: String, onChange: (String) -> Unit, hint: String) {
+    TextField(
+        value = value,
+        onValueChange = onChange,
+        singleLine = true,
+        placeholder = { Text(hint) },
+        shape = RoundedCornerShape(26.dp),
+        colors = TextFieldDefaults.colors(
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+        ),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+    )
 }
 
 @Composable
 fun ChatList(onOpen: (ChatItem) -> Unit) {
     var q by remember { mutableStateOf("") }
     val all = Tg.chats
-    if (all.isEmpty()) {
-        Placeholder("Загружаю чаты…", "Подождите несколько секунд")
-        return
-    }
-    val list = all.filter { (q.isBlank() || it.title.contains(q, true)) && !Tg.hidden(it.title) }
     Column(Modifier.fillMaxSize()) {
-        OutlinedTextField(
-            value = q,
-            onValueChange = { q = it },
-            singleLine = true,
-            placeholder = { Text("Поиск по чатам") },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
-        )
-        LazyColumn(
-            Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(10.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+        Row(
+            Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            items(list) { c -> ChatRow(c, onOpen) }
+            Text("Nexogram", fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            if (Tg.ghost) {
+                Spacer(Modifier.width(8.dp))
+                Text("👻", fontSize = 22.sp)
+            }
+        }
+        SearchPill(q, { q = it }, "Поиск чатов")
+        if (all.isEmpty()) {
+            Placeholder("Загружаю чаты…", "Подождите несколько секунд")
+        } else {
+            val list = all.filter { (q.isBlank() || it.title.contains(q, true)) && !Tg.hidden(it.title) }
+            LazyColumn(Modifier.fillMaxSize()) {
+                items(list) { c -> ChatRow(c, onOpen) }
+            }
         }
     }
 }
@@ -139,57 +169,140 @@ fun ChatList(onOpen: (ChatItem) -> Unit) {
 @Composable
 fun ChatRow(c: ChatItem, onOpen: (ChatItem) -> Unit) {
     val pv = if (Tg.hidden(c.preview)) "скрыто фильтром" else c.preview
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier.fillMaxWidth().clickable { onOpen(c) },
+    val media = listOf("📷", "🎤", "🎬", "📎", "🎵", "📞", "⏺", "GIF", "Стикер", "[").any { pv.startsWith(it) }
+    Row(
+        Modifier.fillMaxWidth().clickable { onOpen(c) }.padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Avatar(c, 52.dp)
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        c.title,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    if (c.muted) Text(" 🔇", fontSize = 12.sp)
-                }
-                if (pv.isNotEmpty()) {
-                    Text(
-                        pv.replace("\n", " "),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            Spacer(Modifier.width(8.dp))
-            Column(horizontalAlignment = Alignment.End) {
+        Avatar(c, 56.dp)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    c.time,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    c.title,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
-                Spacer(Modifier.height(4.dp))
-                if (c.unread > 0) {
-                    Text(
-                        c.unread.toString(),
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .background(
-                                if (c.muted) Color(0xFF3A3A44) else MaterialTheme.colorScheme.primary,
-                                RoundedCornerShape(50),
-                            )
-                            .padding(horizontal = 8.dp, vertical = 2.dp),
-                    )
-                } else if (c.pinned) {
-                    Text("📌", fontSize = 12.sp)
-                }
+                if (c.muted) Text("  🔇", fontSize = 12.sp)
+            }
+            if (pv.isNotEmpty()) {
+                Text(
+                    pv.replace("\n", " "),
+                    color = if (media) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        Spacer(Modifier.width(8.dp))
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                c.time,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(4.dp))
+            if (c.unread > 0) {
+                Text(
+                    c.unread.toString(),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    modifier = Modifier
+                        .background(
+                            if (c.muted) Color(0xFF4A5560) else MaterialTheme.colorScheme.primary,
+                            RoundedCornerShape(50),
+                        )
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                )
+            } else if (c.pinned) {
+                Text("📌", fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
+fun ContactsTab() {
+    LaunchedEffect(Tg.stage) { if (Tg.stage == Stage.Ready) Extras.loadContacts() }
+    var q by remember { mutableStateOf("") }
+    Column(Modifier.fillMaxSize()) {
+        Text(
+            "Контакты",
+            fontSize = 26.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 2.dp),
+        )
+        SearchPill(q, { q = it }, "Поиск контактов")
+        if (Tg.stage != Stage.Ready) {
+            Placeholder("Сначала войдите", "Откройте вкладку «Чаты»")
+        } else if (Extras.contacts.isEmpty()) {
+            Placeholder("Загружаю контакты…", "")
+        } else {
+            val list = Extras.contacts.filter { q.isBlank() || it.name.contains(q, true) }
+            LazyColumn(Modifier.fillMaxSize()) {
+                items(list) { c -> ContactRow(c) }
+            }
+        }
+    }
+}
+
+@Composable
+fun ContactRow(c: ContactItem) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Avatar(c.name, c.photoId, c.photoPath, 52.dp)
+        Spacer(Modifier.width(14.dp))
+        Column {
+            Text(c.name, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                c.status,
+                fontSize = 14.sp,
+                color = if (c.online) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+fun InfoLine(value: String, label: String) {
+    Column {
+        Text(value, fontSize = 17.sp)
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+fun ProfileTab() {
+    LaunchedEffect(Tg.stage) { if (Tg.stage == Stage.Ready) Extras.loadMe() }
+    val me = Extras.me
+    if (me == null) {
+        Placeholder("Профиль", "Загружается…")
+        return
+    }
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Spacer(Modifier.height(12.dp))
+        Avatar(me.name, me.photoId, me.photoPath, 120.dp)
+        Spacer(Modifier.height(12.dp))
+        Text(me.name, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("в сети", color = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.height(20.dp))
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                InfoLine("+" + me.phone, "Телефон")
+                if (me.username.isNotEmpty()) InfoLine("@" + me.username, "Имя пользователя")
             }
         }
     }

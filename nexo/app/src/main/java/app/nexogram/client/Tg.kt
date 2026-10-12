@@ -50,7 +50,7 @@ data class Msg(
 )
 
 object Tg {
-    private val ui = Handler(Looper.getMainLooper())
+    val ui = Handler(Looper.getMainLooper())
     private var client: Client? = null
     private var current = 0L
     private var lastTyping = 0L
@@ -120,7 +120,7 @@ object Tg {
         }
     }
 
-    private fun send(f: TdApi.Function<*>, cb: ((TdApi.Object) -> Unit)? = null) {
+    fun send(f: TdApi.Function<*>, cb: ((TdApi.Object) -> Unit)? = null) {
         client?.send(f, Client.ResultHandler { r ->
             if (r is TdApi.Error) {
                 val m = r.message

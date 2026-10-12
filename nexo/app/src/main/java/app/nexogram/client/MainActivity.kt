@@ -4,49 +4,20 @@ import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-
-private val NexoRed = Color(0xFFFF1744)
-private val NexoBg = Color(0xFF0B0B0D)
-private val NexoCard = Color(0xFF16161A)
 
 class Prefs(ctx: Context) {
     private val sp = ctx.getSharedPreferences("nexo", Context.MODE_PRIVATE)
@@ -58,14 +29,36 @@ class Prefs(ctx: Context) {
     var hideTyping: Boolean
         get() = sp.getBoolean("hideTyping", false)
         set(v) = sp.edit().putBoolean("hideTyping", v).apply()
+
+    var spy: Boolean
+        get() = sp.getBoolean("spy", false)
+        set(v) = sp.edit().putBoolean("spy", v).apply()
+
+    var accent: Int
+        get() = sp.getInt("accent", 0xFFFF1744.toInt())
+        set(v) = sp.edit().putInt("accent", v).apply()
+
+    var filters: String
+        get() = sp.getString("filters", "") ?: ""
+        set(v) = sp.edit().putString("filters", v).apply()
+}
+
+object Store {
+    lateinit var p: Prefs
+}
+
+object NexoStyle {
+    var accent by mutableStateOf(Color(0xFFFF1744))
+    val dim: Color get() = lerp(Color(0xFF0B0B0D), accent, 0.55f)
 }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val prefs = Prefs(applicationContext)
+        Store.p = Prefs(applicationContext)
+        NexoStyle.accent = Color(Store.p.accent)
         setContent {
-            NexoTheme { NexoApp(prefs) }
+            NexoTheme { NexoApp() }
         }
     }
 }
@@ -74,15 +67,15 @@ class MainActivity : ComponentActivity() {
 fun NexoTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = darkColorScheme(
-            primary = NexoRed,
+            primary = NexoStyle.accent,
             onPrimary = Color.White,
-            background = NexoBg,
+            background = Color(0xFF0B0B0D),
             onBackground = Color(0xFFEDEDED),
-            surface = NexoCard,
+            surface = Color(0xFF16161A),
             onSurface = Color(0xFFEDEDED),
             surfaceVariant = Color(0xFF22222A),
             onSurfaceVariant = Color(0xFFB5B5BD),
-            secondaryContainer = Color(0xFF3A1016),
+            secondaryContainer = NexoStyle.dim,
             onSecondaryContainer = Color.White,
         ),
         content = content,
@@ -91,7 +84,7 @@ fun NexoTheme(content: @Composable () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NexoApp(prefs: Prefs) {
+fun NexoApp() {
     var tab by remember { mutableIntStateOf(0) }
     val titles = listOf("Чаты", "Плагины", "Настройки")
     val icons = listOf(Icons.Filled.Email, Icons.Filled.Build, Icons.Filled.Settings)
@@ -123,8 +116,8 @@ fun NexoApp(prefs: Prefs) {
         Box(Modifier.padding(pad).fillMaxSize()) {
             when (tab) {
                 0 -> ChatsTab()
-                1 -> Placeholder("Плагинов пока нет", "Здесь появятся ваши скрипты")
-                else -> SettingsScreen(prefs)
+                1 -> Placeholder("Плагинов пока нет", "Движок плагинов — следующий шаг")
+                else -> SettingsRoot()
             }
         }
     }
@@ -140,52 +133,5 @@ fun Placeholder(title: String, sub: String) {
         Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Text(sub, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
-    }
-}
-
-@Composable
-fun SettingsScreen(prefs: Prefs) {
-    var ghost by remember { mutableStateOf(prefs.ghost) }
-    var typing by remember { mutableStateOf(prefs.hideTyping) }
-
-    Column(
-        Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        SwitchRow("Режим призрака", "Не отмечать сообщения прочитанными", ghost) {
-            ghost = it
-            prefs.ghost = it
-        }
-        SwitchRow("Скрывать «печатает…»", "Собеседник не увидит, что вы пишете", typing) {
-            typing = it
-            prefs.hideTyping = it
-        }
-    }
-}
-
-@Composable
-fun SwitchRow(title: String, sub: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Row(
-            Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(title, fontWeight = FontWeight.SemiBold)
-                Text(
-                    sub,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-            Switch(
-                checked = checked,
-                onCheckedChange = onChange,
-                colors = SwitchDefaults.colors(
-                    checkedTrackColor = MaterialTheme.colorScheme.primary,
-                    checkedThumbColor = Color.White,
-                ),
-            )
-        }
     }
 }
